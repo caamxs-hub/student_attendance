@@ -392,7 +392,7 @@
             </div>
             <div class="form-group">
                 <label>كلمة المرور</label>
-                <input type="password" id="loginPassword" value="sami4141">
+                <input type="password" id="loginPassword" value="1234">
             </div>
             <div class="form-group">
                 <label>نوع المستخدم</label>
@@ -405,10 +405,10 @@
             <button class="btn btn-success" style="width: 100%;" onclick="login()">تسجيل الدخول</button>
             <div style="margin-top: 20px; padding: 15px; background: #EBF8FF; border-radius: 12px; font-size: 13.5px; border: 2px solid #4A90E2;">
                 <strong>حسابات تجريبية:</strong><br>
-                sami / sami4141 (مدير)<br>
-                Tareq / 123 (محاضر)<br>
-                stu1 / stu (طالب)<br>
-                stu2 / stu (طالب)<br>
+                sami / 1234<br>
+                Tareq / 1234 (محاضر)<br>
+                stu1 / 1234 (طالب)<br>
+                stu2 / 1234 (طالب)<br>
             </div>
         </div>
     </div>
@@ -435,6 +435,7 @@
                 <button onclick="showTab('dashboard')" data-roles="admin,instructor">📊 لوحة التحكم</button>
                 <button onclick="showTab('reports')" data-roles="admin">📈 التقارير</button>
                 <button onclick="showTab('students')" data-roles="admin,instructor,student">👥 الطلاب</button>
+                <button  data-roles="admin" onclick="showTab('usersManagement')"><div>🔐المستخدمون</div></button>
             </div>
         </div>
 
@@ -617,7 +618,46 @@
     </div>
 
     <div id="notification" class="notification"></div>
+<!-- تبويب إدارة المستخدمين والصلاحيات -->
+<div id="usersManagement" class="tab-content">
+  <div class="card">
+    <h2>👥 إدارة المستخدمين والصلاحيات</h2>
 
+    <div class="form-group">
+      <label>استيراد من ملف Excel (رفع ملف)</label>
+      <input type="file" id="excelFileInput" accept=".xlsx,.xls" />
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:12px;">
+      <button class="btn btn-success" id="importBtn">استيراد من الملف المرفوع</button>
+      <button class="btn" id="importServerBtn">استيراد من المسار: /mnt/data/1.xlsx</button>
+      <button class="btn btn-danger" id="clearUsersBtn">مسح جميع المستخدمين</button>
+    </div>
+
+    <div id="usersAlert" style="margin-bottom:10px;"></div>
+
+    <div id="usersTableContainer" style="max-height:400px; overflow:auto;">
+      <table id="usersTable" style="width:100%; border-collapse:collapse;">
+        <thead style="background:#EDF2F7;">
+          <tr>
+            <th style="padding:8px; border:1px solid #E2E8F0;">#</th>
+            <th style="padding:8px; border:1px solid #E2E8F0;">الرقم</th>
+            <th style="padding:8px; border:1px solid #E2E8F0;">الاسم</th>
+            <th style="padding:8px; border:1px solid #E2E8F0;">الكلية</th>
+            <th style="padding:8px; border:1px solid #E2E8F0;">التخصص</th>
+            <th style="padding:8px; border:1px solid #E2E8F0;">النوع / الدور</th>
+            <th style="padding:8px; border:1px solid #E2E8F0;">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
     <script>
         let currentUser = null;
         let attendanceData = [];
@@ -747,18 +787,52 @@
         //     showNotification('تم تسجيل الخروج', 'success');
         // }
 
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.nav-tabs button').forEach(btn => btn.classList.remove('active'));
+       // function showTab(tabName) {
+          //  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+         //   document.querySelectorAll('.nav-tabs button').forEach(btn => btn.classList.remove('active'));
             
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-            
-            if (tabName === 'dashboard') updateDashboard();
-            if (tabName === 'students') updateStudentsTable();
+         //   document.getElementById(tabName).classList.add('active');
+          //  event.target.classList.add('active');
+          //  
+          //  if (tabName === 'dashboard') updateDashboard();
+          //  if (tabName === 'students') updateStudentsTable();
+       // }
+           // ...existing code...
+        // ...existing code...
+    function showTab(tabName, triggeringBtn) {
+        // إزالة العلامات النشطة + إرجاع أي inline display تم تعيينه سابقاً
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+            tab.style.display = ''; // إزالة أي inline style يمنع العرض
+        });
+        document.querySelectorAll('.nav-tabs button').forEach(btn => btn.classList.remove('active'));
+    
+        // إظهار التاب المطلوب
+        const tab = document.getElementById(tabName);
+        if (!tab) return;
+        tab.classList.add('active');
+        tab.style.display = ''; // تأكد أن التاب ليس مخفياً بواسطة inline style
+    
+        // إيجاد زر النافبار المقابل إن لم يُمرَّر
+        let btn = triggeringBtn;
+        if (!btn) {
+            btn = Array.from(document.querySelectorAll('.nav-tabs button')).find(b => {
+                const oc = b.getAttribute('onclick') || '';
+                return oc.includes(`showTab('${tabName}')`) || oc.includes(`showTab("${tabName}")`);
+            });
         }
+        if (btn) btn.classList.add('active');
+    
+        // تحديثات خاصة ببعض التابات
+        if (tabName === 'dashboard') updateDashboard();
+        if (tabName === 'students') updateStudentsTable();
+    }
+    
+    
 
-        function generateQR() {
+
+       
+    function generateQR() {
             const courseName = document.getElementById('courseName').value;
             const department = document.getElementById('department').value;
             const lectureDate = document.getElementById('lectureDate').value;
@@ -861,50 +935,197 @@
             document.getElementById('qrInfo').style.display = 'none';
             lastQRData = null;
         }
+// ...existing code...
+// ...existing code...
+// دالة لربط حساب الطالب بسجل الطالب في النظام (تُستدعى بعد تسجيل الدخول)
+function assignBoundStudent() {
+    boundStudentId = null;
+    if (!currentUser) return;
 
-        function startScanner() {
-            const studentId = document.getElementById('studentId').value;
-            const studentName = document.getElementById('studentName').value;
+    const idEl = document.getElementById('studentId');
+    const nameEl = document.getElementById('studentName');
 
-            if (!studentId || !studentName) {
-                showNotification('يرجى إدخال رقم واسم الطالب أولاً', 'error');
-                return;
-            }
+    // إذا لم يكن المستخدم طالبا، نضمن أن الحقول قابلة للتحرير
+    if (currentUser.type !== 'student') {
+        if (idEl) { idEl.readOnly = false; idEl.style.background = ''; }
+        if (nameEl) { nameEl.readOnly = false; nameEl.style.background = ''; }
+        return;
+    }
 
-            const video = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
-            const context = canvas.getContext('2d');
+    // نحاول إيجاد سجل الطالب بالمطابقة على id أو الاسم أو البريد
+    let matched = studentsData.find(s => String(s.id) === String(currentUser.username) || s.name === currentUser.name || s.email === currentUser.email);
 
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(stream => {
-                    videoStream = stream;
-                    video.srcObject = stream;
-                    video.play();
-                    scanningActive = true;
-                    showNotification('تم تشغيل الكاميرا', 'success');
+    // محاولة ثانية: إذا كان في ملف المستخدمين حقل studentId مرتبط
+    if (!matched) {
+        const users = loadUsers();
+        const me = users.find(u => String(u.id) === String(currentUser.username));
+        if (me && me.studentId) matched = studentsData.find(s => String(s.id) === String(me.studentId));
+    }
 
-                    function tick() {
-                        if (video.readyState === video.HAVE_ENOUGH_DATA && scanningActive) {
-                            canvas.height = video.videoHeight;
-                            canvas.width = video.videoWidth;
-                            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                            
-                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                            const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (matched) {
+        boundStudentId = String(matched.id);
+        if (idEl) { idEl.value = matched.id; idEl.readOnly = true; idEl.style.background = '#EDF2F7'; }
+        if (nameEl) { nameEl.value = matched.name; nameEl.readOnly = true; nameEl.style.background = '#EDF2F7'; }
+        showNotification('تم ربط حسابك برقم الطالب ' + matched.id, 'success');
+    } else {
+        showUsersAlert('لم يتم العثور على سجل طالب مطابق. تواصل مع الإدارة لربط حسابك', 'warning');
+    }
+}
+// ...existing code...
+// ...existing code...
+function startScanner() {
+    const studentId = document.getElementById('studentId').value.trim();
+    const studentName = document.getElementById('studentName').value.trim();
 
-                            if (code) {
-                                processQRCode(code.data, studentId, studentName);
-                                return;
-                            }
-                        }
-                        if (scanningActive) requestAnimationFrame(tick);
-                    }
-                    requestAnimationFrame(tick);
-                })
-                .catch(err => {
-                    showNotification('فشل في الوصول إلى الكاميرا: ' + err.message, 'error');
-                });
+    if (!studentId || !studentName) {
+        showNotification('يرجى إدخال رقم واسم الطالب أولاً', 'error');
+        return;
+    }
+
+    // ضمان أن الطالب لا يستطيع تسجيل حضور رقم طالب آخر
+    if (currentUser && currentUser.type === 'student' && boundStudentId) {
+        if (String(studentId) !== String(boundStudentId)) {
+            showNotification('هذا الحساب مربوط برقم طالب آخر. لا يمكنك تسجيل حضور برقم آخر.', 'error');
+            return;
         }
+    }
+
+    if (typeof jsQR === 'undefined') {
+        showNotification('مكتبة jsQR غير محمّلة. أعد تحميل الصفحة.', 'error');
+        return;
+    }
+    // ...existing code...
+}
+// ...existing code...
+function testScan() {
+    if (!lastQRData) {
+        showNotification('يرجى توليد رمز QR أولاً من تبويب "توليد QR"', 'error');
+        return;
+    }
+    
+    const studentId = document.getElementById('studentId').value;
+    const studentName = document.getElementById('studentName').value;
+    
+    if (!studentId || !studentName) {
+        showNotification('يرجى إدخال رقم واسم الطالب', 'error');
+        return;
+    }
+
+    // قيود للمستخدم الطالب
+    if (currentUser && currentUser.type === 'student' && boundStudentId) {
+        if (String(studentId) !== String(boundStudentId)) {
+            showNotification('لا يمكنك اختبار مسح لرقم طالب آخر', 'error');
+            return;
+        }
+    }
+    
+    processQRCode(JSON.stringify(lastQRData), studentId, studentName);
+}
+// ...existing code...
+// function startScanner() {
+//     const studentId = document.getElementById('studentId').value.trim();
+//     const studentName = document.getElementById('studentName').value.trim();
+
+//     if (!studentId || !studentName) {
+//         showNotification('يرجى إدخال رقم واسم الطالب أولاً', 'error');
+//         return;
+//     }
+
+//     if (typeof jsQR === 'undefined') {
+//         showNotification('مكتبة jsQR غير محمّلة. أعد تحميل الصفحة.', 'error');
+//         return;
+//     }
+
+//     const video = document.getElementById('video');
+
+//     // تأكد من وجود canvas، وإن لم يكن فأنشئه
+//     let canvas = document.getElementById('canvas');
+//     if (!canvas) {
+//         canvas = document.createElement('canvas');
+//         canvas.id = 'canvas';
+//         canvas.style.display = 'none';
+//         document.body.appendChild(canvas);
+//     }
+//     const context = canvas.getContext('2d');
+
+//     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+//         .then(stream => {
+//             videoStream = stream;
+//             video.srcObject = stream;
+//             video.play();
+//             scanningActive = true;
+//             showNotification('تم تشغيل الكاميرا', 'success');
+
+//             function tick() {
+//                 if (!scanningActive) return;
+//                 if (video.readyState === video.HAVE_ENOUGH_DATA) {
+//                     canvas.height = video.videoHeight;
+//                     canvas.width = video.videoWidth;
+//                     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+//                     try {
+//                         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+//                         const code = jsQR(imageData.data, imageData.width, imageData.height);
+//                         if (code) {
+//                             processQRCode(code.data, studentId, studentName);
+//                             return;
+//                         }
+//                     } catch (err) {
+//                         console.warn('scanner tick error', err);
+//                     }
+//                 }
+//                 if (scanningActive) requestAnimationFrame(tick);
+//             }
+//             requestAnimationFrame(tick);
+//         })
+//         .catch(err => {
+//             showNotification('فشل في الوصول إلى الكاميرا: ' + (err.message || err), 'error');
+//         });
+// }
+// ...existing code...
+        // function startScanner() {
+        //     const studentId = document.getElementById('studentId').value;
+        //     const studentName = document.getElementById('studentName').value;
+
+        //     if (!studentId || !studentName) {
+        //         showNotification('يرجى إدخال رقم واسم الطالب أولاً', 'error');
+        //         return;
+        //     }
+
+        //     const video = document.getElementById('video');
+        //     const canvas = document.getElementById('canvas');
+        //     const context = canvas.getContext('2d');
+
+        //     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        //         .then(stream => {
+        //             videoStream = stream;
+        //             video.srcObject = stream;
+        //             video.play();
+        //             scanningActive = true;
+        //             showNotification('تم تشغيل الكاميرا', 'success');
+
+        //             function tick() {
+        //                 if (video.readyState === video.HAVE_ENOUGH_DATA && scanningActive) {
+        //                     canvas.height = video.videoHeight;
+        //                     canvas.width = video.videoWidth;
+        //                     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            
+        //                     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        //                     const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+        //                     if (code) {
+        //                         processQRCode(code.data, studentId, studentName);
+        //                         return;
+        //                     }
+        //                 }
+        //                 if (scanningActive) requestAnimationFrame(tick);
+        //             }
+        //             requestAnimationFrame(tick);
+        //         })
+        //         .catch(err => {
+        //             showNotification('فشل في الوصول إلى الكاميرا: ' + err.message, 'error');
+        //         });
+        // }
 
         function stopScanner() {
             scanningActive = false;
@@ -990,6 +1211,13 @@
                 showNotification('⚠️ تم التسجيل مسبقاً', 'warning');
                 return;
             }
+             // منع الطالب من تسجيل حضور لطالب آخر عبر استدعاء برمجي
+             if (currentUser && currentUser.type === 'student' && boundStudentId) {
+                if (String(record.studentId) !== String(boundStudentId)) {
+                     showNotification('لا يمكنك تسجيل حضور لطالب آخر', 'error');
+                 return;
+                     }
+             }
 
             attendanceData.push({
                 ...record,
@@ -1322,64 +1550,783 @@ function applyRolePermissions() {
 
 // -------------------- تعديل دالة تسجيل الدخول لحفظ role في الكوكيز --------------------
 function login() {
-    const username = document.getElementById('loginUsername').value;
+    const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
-    const userType = document.getElementById('loginUserType').value; // هذا سيستخدم كـ role
+    // first check persisted users
+    const storedUsers = loadUsers();
+    const matched = storedUsers.find(u => String(u.id) === String(username));
 
-    // اضافة مستحخدمينت
-    const users = {
+    if (matched) {
+        // password check (plain-text for this demo)
+        if (matched.password === password) {
+            currentUser = { username: matched.id, name: matched.name || matched.id, type: matched.role || 'student' };
+            // if user must change password on first login, prompt them
+            if (matched.mustChangePassword) {
+                let newPass = '';
+                while (!newPass) {
+                    newPass = prompt('هذه أول مرة تسجل دخولك. الرجاء إدخال كلمة مرور جديدة:', '');
+                    if (newPass === null) { // user cancelled
+                        showNotification('يجب تغيير كلمة المرور عند أول تسجيل دخول', 'error');
+                        return;
+                    }
+                    newPass = newPass.trim();
+                    if (!newPass) alert('كلمة المرور لا يمكن أن تكون فارغة.');
+                }
+                // save new password and clear flag
+                matched.password = newPass;
+                matched.mustChangePassword = false;
+                saveUsers(storedUsers);
+                showUsersAlert('تم تحديث كلمة المرور بنجاح', 'success');
+            }
+
+            // حفظ الاسم والدور في الكوكيز
+            setCookie('userRole', currentUser.type, 1);
+            setCookie('userName', currentUser.name, 1);
+
+            // تحديث الواجهة
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainScreen').style.display = 'block';
+            document.getElementById('userName').textContent = `مرحباً ${currentUser.name}`;
+
+            const today = new Date();
+            document.getElementById('lectureDate').valueAsDate = today;
+            const hours = String(today.getHours()).padStart(2, '0');
+            const minutes = String(today.getMinutes()).padStart(2, '0');
+            document.getElementById('lectureTime').value = `${hours}:${minutes}`;
+
+            updateDashboard();
+            updateStudentsTable();
+            applyRolePermissions(); // تطبيق صلاحيات الواجهة بناءً على الدور
+
+            // activate first visible nav tab after permissions applied
+            activateFirstVisibleTab();
+            assignBoundStudent();
+             if (currentUser && currentUser.type === 'student') {
+                showTab('student'); // نقل الطالب مباشرة إلى تبويب المسح
+            }
+
+            showNotification('تم تسجيل الدخول بنجاح', 'success');
+            return;
+        } else {
+            showNotification('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+            return;
+        }
+    }
+
+    // fallback: keep existing hardcoded accounts for backward compatibility
+    const usersFallback = {
         sami: { password: 'sami4141', name: 'مدير النظام', type: 'admin' },
-        Tareq: { password: '123', name: 'د. أحمد الغامدي', type: 'instructor' },
-        stu1: { password: 'stu', name: 'طالب ', type: 'student' },
-        stu2: { password: 'stu', name: 'طالب ', type: 'student' }
+        Tareq: { password: '123', name: 'د. أحمد الغامدي', type: 'instructor' }
     };
 
-    if (users[username] && users[username].password === password) {
-        currentUser = { username, ...users[username] };
-        // حفظ الاسم والدور في الكوكيز
-        setCookie('userRole', currentUser.type, 1); // صلاحية 15 يوم  (يمكن تغييرها)
+    if (usersFallback[username] && usersFallback[username].password === password) {
+        currentUser = { username, ...usersFallback[username] };
+        setCookie('userRole', currentUser.type, 1);
         setCookie('userName', currentUser.name, 1);
 
-        // تحديث الواجهة
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('mainScreen').style.display = 'block';
         document.getElementById('userName').textContent = `مرحباً ${currentUser.name}`;
 
         const today = new Date();
         document.getElementById('lectureDate').valueAsDate = today;
-        const hours = String(today.getHours()).padStart(2, '0');
-        const minutes = String(today.getMinutes()).padStart(2, '0');
-        document.getElementById('lectureTime').value = `${hours}:${minutes}`;
+        const hours2 = String(today.getHours()).padStart(2, '0');
+        const minutes2 = String(today.getMinutes()).padStart(2, '0');
+        document.getElementById('lectureTime').value = `${hours2}:${minutes2}`;
 
         updateDashboard();
         updateStudentsTable();
-        applyRolePermissions(); // تطبيق صلاحيات الواجهة بناءً على الدور
+        applyRolePermissions();
+        activateFirstVisibleTab();
         showNotification('تم تسجيل الدخول بنجاح', 'success');
     } else {
         showNotification('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
     }
 }
 
+// helper: activate first visible nav tab button
+function activateFirstVisibleTab() {
+    // remove active classes first
+    document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+    // find first visible nav button (not display: none)
+    const btn = Array.from(document.querySelectorAll('.nav-tabs button')).find(b => {
+        return b.offsetParent !== null && getComputedStyle(b).display !== 'none';
+    });
+    if (btn) {
+        // simulate click handling: call showTab with its onclick target if exists
+        const onclick = btn.getAttribute('onclick');
+        try {
+            // prefer calling the function programmatically
+            btn.classList.add('active');
+            // extract param like showTab('Tareq')
+            if (onclick) {
+                // call showTab with the tab name parsed
+                const m = onclick.match(/showTab\(['"]([^'"]+)['"]\)/);
+                if (m && m[1]) showTab(m[1]);
+            }
+        } catch (e) {
+            // fallback: click the button
+            btn.click();
+        }
+    } else {
+        // no visible tab -> ensure all tabs hidden
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    }
+}
+
 // -------------------- تعديل دالة تسجيل الخروج لمسح الكوكيز --------------------
+// function logout() {
+//     currentUser = null;
+//     deleteCookie('userRole');
+//     deleteCookie('userName');
+//     document.getElementById('loginScreen').style.display = 'block';
+//     document.getElementById('mainScreen').style.display = 'none';
+
+//     // hide all tab contents and remove active classes so nothing remains visible
+//     document.querySelectorAll('.tab-content').forEach(tc => {
+//       tc.classList.remove('active');
+//       // explicitly hide in case some were injected outside mainScreen
+//       tc.style.display = 'none';
+//     });
+//     document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+
+//     // specifically hide users management if present
+//     const um = document.getElementById('usersManagement');
+//     if (um) {
+//       um.classList.remove('active');
+//       um.style.display = 'none';
+//     }
+
+//     // close any custom modal if open
+//     if (typeof closeModal === 'function') {
+//       try { closeModal(); } catch (e) { /* ignore */ }
+//     }
+
+//     // re-apply role-based UI so nav buttons update immediately (no page refresh)
+//     applyRolePermissions();
+
+//     // activate default/first visible tab if any (for logged-out state this usually hides most)
+//     activateFirstVisibleTab();
+
+//     showNotification('تم تسجيل الخروج', 'success');
+// }
+
+// ...existing code...
 function logout() {
     currentUser = null;
     deleteCookie('userRole');
     deleteCookie('userName');
     document.getElementById('loginScreen').style.display = 'block';
     document.getElementById('mainScreen').style.display = 'none';
+
+    // إزالة الكلاسات النشطة (لا تضيف inline display:none)
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+
+    // إخفاء خاص لإدارة المستخدمين إن لزم
+    const um = document.getElementById('usersManagement');
+    if (um) {
+      um.classList.remove('active');
+      um.style.display = 'none';
+    }
+
+    // غلق أي مودال مفتوح
+    if (typeof closeModal === 'function') {
+      try { closeModal(); } catch (e) { /* ignore */ }
+    }
+
+    // إعادة تطبيق الصلاحيات لتحديث أزرار التنقل
+    applyRolePermissions();
+
+    // تفعيل أول تاب مرئي إن وجد
+    activateFirstVisibleTab();
+
     showNotification('تم تسجيل الخروج', 'success');
 }
-
+// ...existing code...
 // -------------------- تطبيق الصلاحيات عند تحمّل الصفحة إذا كان هناك كوكي محفوظ --------------------
 window.addEventListener('load', function() {
     // بقية كود التحميل الحالي لديك — تأكد من أن هذا السطر يُنفّذ بعد تهيئة DOM
     applyRolePermissions();
 });
+</script>
+<!-- // -------------------- إدارة المستخدمين واضافة من اكسل   -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-    
-    
-    
-    
-    </script>
-</body>
-</html>
+// ...existing code...
+<script>
+  const USERS_STORAGE_KEY = 'usersData_v1';
+
+  // --- مساعدة إشعارات مستخدمي الإدارة ---
+  function showUsersAlert(message, type='success') {
+    const el = document.getElementById('usersAlert');
+    if (!el) return;
+    el.innerHTML = `<div class="alert ${type==='error'?'alert-danger':type==='warning'?'alert-warning':'alert-success'}" style="padding:10px 12px; border-radius:8px;">${message}</div>`;
+    setTimeout(()=>{ if (el) el.innerHTML=''; }, 5000);
+  }
+
+  // تحميل المستخدمين من localStorage
+  function loadUsers() {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    try {
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  }
+
+  // مزامنة مستخدمي الدور student مع studentsData (تجنب التكرار)
+  function syncUsersToStudents() {
+    const users = loadUsers();
+    users.forEach(u => {
+      if ((u.role || '').toLowerCase() === 'student') {
+        const exists = studentsData.find(s => String(s.id) === String(u.id));
+        if (!exists) {
+          studentsData.push({
+            id: String(u.id || ''),
+            name: u.name || ('طالب ' + (u.id || '')),
+            email: (u.email || `${u.id}@example.edu`),
+            dept: (u.college || u.major || ''),
+            present: 0,
+            absent: 0
+          });
+        } else {
+          // تحديث بيانات العرض الأساسية
+          exists.name = u.name || exists.name;
+          exists.email = u.email || exists.email;
+          exists.dept = u.college || u.major || exists.dept;
+        }
+      }
+    });
+    updateStudentsTable();
+    updateDashboard();
+  }
+
+  // seed افتراضي للمستخدمين عند أول تحميل (يضيف حسابات تجريبية إن لم تكن موجودة)
+  function seedDefaultUsers() {
+    const existing = loadUsers();
+    if (existing && existing.length) {
+      renderUsersTable();
+      syncUsersToStudents();
+      return;
+    }
+    const defaults = [
+      { id: 'sami', name: 'مدير النظام', role: 'admin', password: '1234', mustChangePassword: false, college: '', major: '' },
+      { id: 'Tareq', name: 'د. أحمد الغامدي', role: 'instructor', password: '1234', mustChangePassword: false, college: '', major: '' },
+      { id: 'stu1', name: 'طالب تجريبي 1', role: 'student', password: '1234', mustChangePassword: false, college: 'علوم', major: 'حاسب' },
+      { id: 'stu2', name: 'طالب تجريبي 2', role: 'student', password: '1234', mustChangePassword: false, college: 'علوم', major: 'حاسب' }
+    ];
+    saveUsers(defaults);
+    renderUsersTable();
+    syncUsersToStudents();
+  }
+
+  // تحديث جدول العرض
+  function renderUsersTable() {
+    const users = loadUsers();
+    let tbody = document.querySelector('#usersTable tbody');
+    if (!tbody) {
+      const table = document.getElementById('usersTable');
+      if (!table) return;
+      tbody = document.createElement('tbody');
+      table.appendChild(tbody);
+    }
+    tbody.innerHTML = '';
+    users.forEach((u, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:8px; border:1px solid #E2E8F0;">${idx+1}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.id || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.name || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.college || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.major || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">
+          <select onchange="changeUserRole(${idx}, this.value)">
+            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+            <option value="instructor" ${u.role==='instructor'?'selected':''}>Instructor</option>
+            <option value="student" ${u.role==='student'?'selected':''}>Student</option>
+          </select>
+        </td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">
+          <button onclick="editUser(${idx})" class="btn">تعديل</button>
+          <button onclick="deleteUser(${idx})" class="btn btn-danger">حذف</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const totalEl = document.getElementById('totalStudents');
+    if (totalEl) totalEl.textContent = studentsData.length;
+  }
+
+  // تغيير دور مستخدم
+  function changeUserRole(index, newRole) {
+    const users = loadUsers();
+    if (!users[index]) return;
+    users[index].role = newRole;
+    saveUsers(users);
+    showUsersAlert('تم تغيير دور المستخدم', 'success');
+    renderUsersTable();
+    syncUsersToStudents();
+  }
+
+  // حذف مستخدم
+  function deleteUser(index) {
+    const users = loadUsers();
+    if (!users[index]) return;
+    if (!confirm('هل أنت متأكد من حذف المستخدم؟')) return;
+    const removed = users.splice(index,1);
+    saveUsers(users);
+    showUsersAlert(`تم حذف المستخدم ${removed[0].id || ''}`, 'success');
+    renderUsersTable();
+    syncUsersToStudents();
+  }
+
+  // تعديل مستخدم (عرض نافذة prompt بسيطة)
+  function editUser(index) {
+    const users = loadUsers();
+    const u = users[index];
+    if (!u) return;
+    const newName = prompt('الاسم الكامل:', u.name || '');
+    if (newName === null) return;
+    u.name = newName.trim() || u.name;
+    const newEmail = prompt('البريد الإلكتروني:', u.email || '');
+    if (newEmail !== null) u.email = newEmail.trim();
+    saveUsers(users);
+    showUsersAlert('تم تحديث بيانات المستخدم', 'success');
+    renderUsersTable();
+    syncUsersToStudents();
+  }
+
+  // تحويل صف الاكسل إلى كائن مستخدم
+  function mapRowToUser(row) {
+    function pick(...keys) {
+      for (const k of keys) {
+        if (row[k] !== undefined && row[k] !== null && String(row[k]).toString().trim() !== '') {
+          return String(row[k]).trim();
+        }
+      }
+      return '';
+    }
+
+    const id = pick('الرقم الجامعي','الرقم الوظيفي للمدرس','الرقم','id','ID','Id','رقم');
+    const name = pick('الاسم','name','Name');  //,'اسم المدرس','INST_NAME'
+    const college = pick('كلية الطالب','كلية المقرر','كلية','college');
+    const major = pick('تخصص الطالب','تخصص المقرر','تخصص','major');
+    const email = pick('البريد','email','Email','البريد الالكتروني','emailAddress');
+
+    return {
+      id: id || `gen_${Date.now()}`,
+      name: name || ('مستخدم ' + (id || '').slice(-4)),
+      college,
+      major,
+      email,
+      role: (row['role'] || row['Role'] || (id && String(id).toLowerCase().includes('t') ? 'instructor' : 'student')).toString().toLowerCase(),
+      raw: row
+    };
+  }
+
+  // استيراد من Array rows
+  function importRows(rows) {
+    try {
+      if (!rows || !rows.length) {
+        showUsersAlert('الملف فارغ أو رأس الأعمدة غير معروف', 'error');
+        return;
+      }
+      const existing = loadUsers();
+      let added = 0;
+      rows.forEach((r, idx) => {
+        const user = mapRowToUser(r);
+        // default password "1234" للمستخدمين الجدد
+        user.password = user.password || '1234';
+        user.mustChangePassword = true; // يجبرهم على تغيير الباس عند أول تسجيل دخول
+        const found = existing.find(u => u.id && String(u.id) === String(user.id));
+        if (found) {
+          Object.assign(found, user);
+        } else {
+          existing.push(user);
+          added++;
+        }
+      });
+      saveUsers(existing);
+      renderUsersTable();
+      syncUsersToStudents();
+      showUsersAlert(`تم استيراد ${rows.length} سطرًا (${added} مستخدم/ين جديد)`,'success');
+      console.log('importRows: imported', rows.length, 'added', added);
+    } catch (err) {
+      console.error('importRows error', err);
+      showUsersAlert('خطأ داخلي عند الاستيراد: ' + (err.message || err), 'error');
+    }
+  }
+
+  // قراءة ملف اكسل من ملف مرفوع عبر input
+  function handleFileUpload(file) {
+    try {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          if (typeof XLSX === 'undefined') {
+            showUsersAlert('مكتبة XLSX غير محمّلة', 'error');
+            throw new Error('XLSX not loaded');
+          }
+          const workbook = XLSX.read(data, {type:'array'});
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet, {defval:''});
+          console.log('handleFileUpload: rows read', json.length);
+          importRows(json);
+        } catch (innerErr) {
+          console.error('handleFileUpload inner error', innerErr);
+          showUsersAlert('خطأ عند قراءة ملف الإكسل: ' + innerErr.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (err) {
+      console.error('handleFileUpload error', err);
+      showUsersAlert('فشل فتح الملف: ' + err.message, 'error');
+    }
+  }
+
+  // استيراد من مسار خادمي — محاولة جلب الملف كـ ArrayBuffer ثم تمريره
+  function importFromServer(serverPath) {
+    fetch(serverPath)
+      .then(r => {
+        if (!r.ok) throw new Error('فشل الوصول إلى الملف على الخادم');
+        return r.arrayBuffer();
+      })
+      .then(buf => {
+        const file = new File([buf], serverPath.split('/').pop() || 'file.xlsx');
+        handleFileUpload(file);
+      })
+      .catch(err => {
+        console.error('importFromServer error', err);
+        showUsersAlert('فشل استيراد الملف من المسار: ' + err.message, 'error');
+      });
+  }
+
+  // bind handlers only if elements exist (prevents errors if DOM ordering changes)
+  document.addEventListener('DOMContentLoaded', function() {
+    // seed defaults before rendering table
+    seedDefaultUsers();
+
+    const excelInput = document.getElementById('excelFileInput');
+    if (excelInput) {
+      excelInput.addEventListener('change', (e)=>{
+        const f = e.target.files[0];
+        if (!f) return;
+        handleFileUpload(f);
+      });
+    }
+
+    const importBtn = document.getElementById('importBtn');
+    if (importBtn) {
+      importBtn.addEventListener('click', ()=>{
+        const inp = document.getElementById('excelFileInput');
+        if (!inp || !inp.files || !inp.files[0]) {
+          alert('اختر ملف Excel أولاً أو اضغط "استيراد من المسار"');
+          return;
+        }
+        handleFileUpload(inp.files[0]);
+      });
+    }
+
+    const importServerBtn = document.getElementById('importServerBtn');
+    if (importServerBtn) {
+      importServerBtn.addEventListener('click', ()=>{
+        const serverPath = '/mnt/data/1.xlsx';
+        importFromServer(serverPath);
+      });
+    }
+
+    const clearBtn = document.getElementById('clearUsersBtn');
+    if (clearBtn) clearBtn.addEventListener('click', clearAllUsers);
+
+    // render table after bindings
+    renderUsersTable();
+  });
+
+  // Ensure logout closes any open modal and hides the users management tab (if shown)
+  function logout() {
+    currentUser = null;
+    deleteCookie('userRole');
+    deleteCookie('userName');
+    document.getElementById('loginScreen').style.display = 'block';
+    document.getElementById('mainScreen').style.display = 'none';
+
+    // hide all tab contents and remove active classes so nothing remains visible
+    document.querySelectorAll('.tab-content').forEach(tc => {
+      tc.classList.remove('active');
+      // explicitly hide in case some were injected outside mainScreen
+      tc.style.display = 'none';
+    });
+    document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+
+    // specifically hide users management if present
+    const um = document.getElementById('usersManagement');
+    if (um) {
+      um.classList.remove('active');
+      um.style.display = 'none';
+    }
+
+    // close any custom modal if open
+    if (typeof closeModal === 'function') {
+      try { closeModal(); } catch (e) { /* ignore */ }
+    }
+
+    // re-apply role-based UI so nav buttons update immediately (no page refresh)
+    applyRolePermissions();
+
+    // activate default/first visible tab if any (for logged-out state this usually hides most)
+    activateFirstVisibleTab();
+
+    showNotification('تم تسجيل الخروج', 'success');
+  }
+
+  // مساعدة: مسح جميع المستخدمين (زر)
+  function clearAllUsers() {
+    if (!confirm('هل تريد مسح جميع المستخدمين المخزنين؟')) return;
+    localStorage.removeItem(USERS_STORAGE_KEY);
+    renderUsersTable();
+    showUsersAlert('تم مسح جميع المستخدمين', 'success');
+  }
+</script>
+// ...existing code...
+<!-- <script>
+  const USERS_STORAGE_KEY = 'usersData_v1';
+
+  // تحميل المستخدمين من localStorage
+  function loadUsers() {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    try {
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  }
+
+  // تحديث جدول العرض
+  function renderUsersTable() {
+    const users = loadUsers();
+    let tbody = document.querySelector('#usersTable tbody');
+    // create tbody if not present (robustness)
+    if (!tbody) {
+      const table = document.getElementById('usersTable');
+      if (!table) return;
+      tbody = document.createElement('tbody');
+      table.appendChild(tbody);
+    }
+    tbody.innerHTML = '';
+    users.forEach((u, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:8px; border:1px solid #E2E8F0;">${idx+1}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.id || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.name || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.college || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">${u.major || ''}</td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">
+          <select onchange="changeUserRole(${idx}, this.value)">
+            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+            <option value="instructor" ${u.role==='instructor'?'selected':''}>Instructor</option>
+            <option value="student" ${u.role==='student'?'selected':''}>Student</option>
+          </select>
+        </td>
+        <td style="padding:8px; border:1px solid #E2E8F0;">
+          <button onclick="editUser(${idx})" class="btn">تعديل</button>
+          <button onclick="deleteUser(${idx})" class="btn btn-danger">حذف</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // تحديث بعض الإحصائيات أو دمج مع studentsData إن أردت
+    const totalEl = document.getElementById('totalStudents');
+    if (totalEl) totalEl.textContent = users.length;
+  }
+
+  // تحويل صف الاكسل إلى كائن مستخدم
+  function mapRowToUser(row) {
+    // try multiple header variants and trim values
+    function pick(...keys) {
+      for (const k of keys) {
+        if (row[k] !== undefined && row[k] !== null && String(row[k]).toString().trim() !== '') {
+          return String(row[k]).trim();
+        }
+      }
+      return '';
+    }
+
+    const id = pick('الرقم الجامعي','الرقم الوظيفي للمدرس','الرقم','id','ID','Id','رقم');
+    const name = pick('الاسم','اسم المدرس','INST_NAME','name','Name');
+    const college = pick('كلية الطالب','كلية المقرر','كلية','college');
+    const major = pick('تخصص الطالب','تخصص المقرر','تخصص','major');
+
+    return {
+      id,
+      name,
+      college,
+      major,
+      branch: row['فرع الطالب'] || '',
+      role: id && String(id).toLowerCase().includes('t') ? 'instructor' : (row['role'] || row['Role'] || (id && id.toString().length>4 ? 'student' : 'student')),
+      raw: row
+    };
+  }
+
+  // استيراد من Array rows
+  function importRows(rows) {
+    try {
+      if (!rows || !rows.length) {
+        showUsersAlert('الملف فارغ أو رأس الأعمدة غير معروف', 'error');
+        return;
+      }
+      const existing = loadUsers();
+      let added = 0;
+      rows.forEach((r, idx) => {
+        const user = mapRowToUser(r);
+        // if no id, generate a stable fallback
+        if (!user.id) {
+          user.id = `gen_${Date.now().toString().slice(-6)}_${idx}`;
+          user._generatedId = true;
+        }
+        const found = existing.find(u => u.id && String(u.id) === String(user.id));
+        if (found) {
+          Object.assign(found, user);
+        } else {
+          // assign default password + require change on first login if not present
+          user.password = user.password || '1234pass';
+          user.mustChangePassword = true;
+          existing.push(user);
+          added++;
+        }
+      });
+      saveUsers(existing);
+      renderUsersTable();
+      showUsersAlert(`تم استيراد ${rows.length} سطرًا (${added} مستخدم/ين جديد)`,'success');
+      console.log('importRows: imported', rows.length, 'added', added);
+    } catch (err) {
+      console.error('importRows error', err);
+      showUsersAlert('خطأ داخلي عند الاستيراد: ' + (err.message || err), 'error');
+    }
+  }
+
+  // قراءة ملف اكسل من ملف مرفوع عبر input
+  function handleFileUpload(file) {
+    try {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          if (typeof XLSX === 'undefined') throw new Error('مكتبة XLSX غير محمّلة');
+          const workbook = XLSX.read(data, {type:'array'});
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet, {defval:''});
+          console.log('handleFileUpload: rows read', json.length);
+          importRows(json);
+        } catch (innerErr) {
+          console.error('handleFileUpload inner error', innerErr);
+          showUsersAlert('خطأ عند قراءة ملف الإكسل: ' + innerErr.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (err) {
+      console.error('handleFileUpload error', err);
+      showUsersAlert('فشل فتح الملف: ' + err.message, 'error');
+    }
+  }
+
+  // bind handlers only if elements exist (prevents errors if DOM ordering changes)
+  document.addEventListener('DOMContentLoaded', function() {
+    // seed defaults before rendering table
+    seedDefaultUsers();
+
+    const excelInput = document.getElementById('excelFileInput');
+    if (excelInput) {
+      excelInput.addEventListener('change', (e)=>{
+        const f = e.target.files[0];
+        if (!f) return;
+        handleFileUpload(f);
+      });
+    }
+
+    const importBtn = document.getElementById('importBtn');
+    if (importBtn) {
+      importBtn.addEventListener('click', ()=>{
+        const inp = document.getElementById('excelFileInput');
+        if (!inp || !inp.files || !inp.files[0]) {
+          alert('اختر ملف Excel أولاً أو اضغط "استيراد من المسار"');
+          return;
+        }
+        handleFileUpload(inp.files[0]);
+      });
+    }
+
+    const importServerBtn = document.getElementById('importServerBtn');
+    if (importServerBtn) {
+      importServerBtn.addEventListener('click', ()=>{
+        const serverPath = '/mnt/data/1.xlsx';
+        importFromServer(serverPath);
+      });
+    }
+
+    const clearBtn = document.getElementById('clearUsersBtn');
+    if (clearBtn) clearBtn.addEventListener('click', clearAllUsers);
+
+    // render table after bindings
+    renderUsersTable();
+  });
+
+  // Ensure logout closes any open modal and hides the users management tab (if shown)
+  function logout() {
+    currentUser = null;
+    deleteCookie('userRole');
+    deleteCookie('userName');
+    document.getElementById('loginScreen').style.display = 'block';
+    document.getElementById('mainScreen').style.display = 'none';
+
+    // hide all tab contents and remove active classes so nothing remains visible
+    document.querySelectorAll('.tab-content').forEach(tc => {
+      tc.classList.remove('active');
+      // explicitly hide in case some were injected outside mainScreen
+      tc.style.display = 'none';
+    });
+    document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+
+    // specifically hide users management if present
+    const um = document.getElementById('usersManagement');
+    if (um) {
+      um.classList.remove('active');
+      um.style.display = 'none';
+    }
+
+    // close any custom modal if open
+    if (typeof closeModal === 'function') {
+      try { closeModal(); } catch (e) { /* ignore */ }
+    }
+
+    // re-apply role-based UI so nav buttons update immediately (no page refresh)
+    applyRolePermissions();
+
+    // activate default/first visible tab if any (for logged-out state this usually hides most)
+    activateFirstVisibleTab();
+
+    showNotification('تم تسجيل الخروج', 'success');
+  } -->
+
+  <!-- // وظيفة مساعدة: ربط الصلاحيات بناءً على المستخدمين المحفوظين (مثال) -->
+ <script>
+  function applyRolePermissionsFromUsers() {
+    const role = getCookie('userRole') || null;
+
+     applyRolePermissions();
+  }
+</script>
